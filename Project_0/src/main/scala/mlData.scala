@@ -14,7 +14,7 @@ insert save data
 object mlData {
   private val _url = "jdbc:mysql://localhost:3306/test"
   private val _username = "root"
-  private val _password = "Torus198705$"
+  private val _password = ""
 
   def getMadlib(madlib_id:Int): (String,String) = {
     val connection:Connection = DriverManager.getConnection(_url, _username, _password)
