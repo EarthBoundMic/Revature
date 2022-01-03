@@ -21,6 +21,9 @@ object MovieDatabase {
     spark.sparkContext.setLogLevel("ERROR")
     loadData(spark)
     mainMenu(spark)
+    //spark.sql("select title,network from p1.movie_list_main").show
+    //spark.sql("SELECT * FROM p1.movie_list_main where network LIKE 'A%'").show
+    //spark.sql("describe p1.movie_list_main").show
     spark.sql("DROP TABLE IF EXISTS movie_list_copy")
     println("\nGoodbye")
     spark.close()
@@ -75,7 +78,7 @@ object MovieDatabase {
         else
           print("\nBasic Main Menu\nSelect option number:\n1. Sample Data\n2. Basic Data\n0. Exit\n> ")
       } else
-        print("\nMain Menu\nSelect option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
+        print("\n\n\n\nMain Menu\nSelect option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
       selection = readLine().toInt
       if (selection == 1)
         sampleQueries(spark)
@@ -112,10 +115,28 @@ object MovieDatabase {
     // basic example queries go here
     var selection: Int = 0
     do {
-      print("\nBasic Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
+      print("\nBasic Queries\n\n" +
+        "Select option number:\n" +
+        "1. List first 20 movies\n" +
+        "2. List movies that were released in 2019\n" +
+        "3. List directors that got a critic score above 75%\n" +
+        "4. List popular genres (by amount of audience ratings)\n" +
+        "5. List movies with both good critic and audience scores (above 70%)\n" +
+        "6. List movies with cast members where critics didn't like the movies but audience did\n" +
+        "0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
-        spark.sql("SELECT * FROM movie_list_copy ORDER BY year LIMIT 20").show
+        spark.sql("SELECT network, title, genre, year, director, criticScore, audienceScore FROM movie_list_copy ORDER BY year LIMIT 20").show
+      else if (selection == 2)
+        spark.sql("SELECT title, genre, year FROM movie_list_copy where year = 2019").show
+      else if (selection == 3)
+        spark.sql("SELECT director FROM movie_list_copy WHERE criticScore >= .75").show
+      else if (selection == 4)
+        spark.sql("SELECT genre FROM movie_list_copy WHERE audienceCount > 1000 GROUP BY genre").show
+      else if (selection == 5)
+        spark.sql("SELECT title FROM movie_list_copy WHERE criticScore >= .7 AND audienceScore >= .7").show
+      else if (selection == 6)
+        spark.sql("SELECT title, cast, criticScore, audienceScore FROM movie_list_copy WHERE criticScore < .4 AND audienceScore > .6").show
       else
         println("invalid input\n")
     }
@@ -163,27 +184,29 @@ object MovieDatabase {
     println("\nUser Login\nIf you change your mind, leave username blank")
     var selection = 0
     do {
+      selection = 0
       print("\nEnter username: ")
       val input = readLine()
       val query = spark.sql(s"SELECT userlevel, password FROM user_list WHERE username = '$input'").collect()
-      if (query.isEmpty) {
-        println("\nname doesn't exist\n")
-        selection = 1
-      }
-      else {
-        print("\nEnter password: ")
-        val password = readLine()
-        if (query.take(1)(0).getString(1) != password) {
-          println("\ninvalid password\n")
+      if (input != "") {
+        if (query.isEmpty) {
+          println("\nname doesn't exist\n")
           selection = 1
         }
         else {
-          _user = input
-          _isLogin = true
-          selection = 0
-        }
-        if (query.take(1)(0).getString(0) == "Admin") {
-          _isAdmin = true
+          print("\nEnter password: ")
+          val password = readLine()
+          if (query.take(1)(0).getString(1) != password) {
+            println("\ninvalid password\n")
+            selection = 1
+          }
+          else {
+            _user = input
+            _isLogin = true
+          }
+          if (query.take(1)(0).getString(0) == "Admin") {
+            _isAdmin = true
+          }
         }
       }
     }
@@ -201,11 +224,8 @@ object MovieDatabase {
       spark.sql(s"INSERT INTO TABLE user_list VALUES ('$name','Admin','$password')")
       _adminCreated = true
       _isAdmin = true
-    } else {
-      //val id = spark.sql("SELECT max(id) AS cur FROM user_list").collect().take(1)(1)
-      //println("ugh: " + id)
+    } else
       spark.sql(s"INSERT INTO TABLE user_list VALUES ('$name', 'Basic', '$password')")
-    }
     _isLogin = true
     _user = name
   }
