@@ -46,9 +46,9 @@ object MovieDatabase {
       println("creating primary movie list")
       spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,director String,cast String,year Int,criticScore Decimal,criticRatings Int,audienceScore Decimal,audienceCount Int,network String,genre String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ','")
       spark.sql("LOAD DATA LOCAL INPATH 'pj1datasample.txt' INTO TABLE movie_list_main")
+    }
       spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,director String,cast String,year Int,criticScore Decimal,criticRatings Int,audienceScore Decimal,audienceCount Int,network String,genre String)")
       spark.sql("INSERT INTO movie_list_copy (SELECT * FROM movie_list_main)")
-    }
     spark.sql("select * from movie_list_main").show*/
     val adminCheck = spark.sql("select username from user_list where userlevel = \"Admin\"")
     if (adminCheck.collect().isEmpty)
@@ -77,7 +77,10 @@ object MovieDatabase {
           userLoginMenu(spark)
         else
           basicQueries(spark)
-      } else
+      }
+      else if (_isAdmin && selection == 3)
+          adminUserManip(spark)
+      else
         println("invalid input\n")
     }
     while (selection != 0)
@@ -114,6 +117,18 @@ object MovieDatabase {
 
   def adminUserManip(spark:SparkSession): Unit = {
     // change and remove users here including self
+    var selection: Int = 0
+    do {
+      print("User Data Access\n\nSelect option number:\n1. Change Data\n2. Delete Data\n0. Go back\n> ")
+      selection = readLine().toInt
+      if (selection == 1)
+        alterUserData(spark)
+      else if (selection == 2)
+        deleteUserData(spark)
+      else
+        println("invalid input\n")
+    }
+    while (selection != 0)
   }
 
   def userLoginMenu(spark: SparkSession): Unit = {
@@ -182,13 +197,33 @@ object MovieDatabase {
     }
   }
 
-  def userMenu(spark:SparkSession): Unit = {
+  def alterUserData(spark: SparkSession): Unit = {
+    // change username of a user
+    var selection = 1
+    do {
+      print("\nSelect username:\n> ")
+      val name = readLine()
+      val query = spark.sql(s"select * from user_list where username = $name").collect()
+      if (!query.isEmpty) {
+        print("\nNew username:\n> ")
+        val newName = readLine()
+        spark.sql("ALTER ")
+      }
+    }
+    while (selection != 0)
+  }
+
+  def deleteUserData(spark: SparkSession): Unit = {
+
+  }
+
+  /*def userMenu(spark:SparkSession): Unit = {
     // basic user menu
   }
 
   def adminMenu(spark:SparkSession): Unit = {
     // admin user menu
-  }
+  }*/
 }
 
 /*
