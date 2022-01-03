@@ -69,12 +69,13 @@ object MovieDatabase {
     var selection: Int = 0
     do {
       if (_isLogin) {
+        println(s"\n\nWelcome ${_user}")
         if (_isAdmin)
-          print("Select option number:\n1. Sample Data\n2. Basic Data\n3. User Data\n0. Exit\n> ")
+          print("\nAdmin Main Menu\nSelect option number:\n1. Sample Data\n2. Basic Data\n3. User Data\n0. Exit\n> ")
         else
-          print("Select option number:\n1. Sample Data\n2. Basic Data\n0. Exit\n> ")
+          print("\nBasic Main Menu\nSelect option number:\n1. Sample Data\n2. Basic Data\n0. Exit\n> ")
       } else
-        print("Select option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
+        print("\nMain Menu\nSelect option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
       selection = readLine().toInt
       if (selection == 1)
         sampleQueries(spark)
@@ -97,7 +98,7 @@ object MovieDatabase {
     // can use data that can't be shown but not allowed to see it
     var selection: Int = 0
     do {
-      print("Sample Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
+      print("\nSample Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
         spark.sql("SELECT network, title, genre, year, criticScore FROM movie_list_copy ORDER BY year LIMIT 20").show
@@ -111,7 +112,7 @@ object MovieDatabase {
     // basic example queries go here
     var selection: Int = 0
     do {
-      print("Basic Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
+      print("\nBasic Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
         spark.sql("SELECT * FROM movie_list_copy ORDER BY year LIMIT 20").show
@@ -125,7 +126,7 @@ object MovieDatabase {
     // change and remove users here including self
     var selection: Int = 0
     do {
-      print("User Data Access\n\nSelect option number:\n1. Change Data\n2. Delete Data\n3. List Users\n0. Go back\n> ")
+      print("\nUser Data Access\n\nSelect option number:\n1. Change Data\n2. Delete Data\n3. List Users\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
         alterUserData(spark)
@@ -144,7 +145,7 @@ object MovieDatabase {
     // however, if no admin, create user will go to creating admin account
     var selection: Int = 0
     do {
-      print("User Select\nSelect option number:\n1. Create User\n2. Login\n0. Go back\n> ")
+      print("\nUser Select\nSelect option number:\n1. Create User\n2. Login\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1) {
         createUser(spark)
@@ -159,7 +160,7 @@ object MovieDatabase {
   }
 
   def userLogin(spark:SparkSession): Unit = {
-    println("User Login\nIf you change your mind, leave username blank")
+    println("\nUser Login\nIf you change your mind, leave username blank")
     var selection = 0
     do {
       print("\nEnter username: ")
@@ -191,7 +192,7 @@ object MovieDatabase {
 
   def createUser(spark:SparkSession): Unit = {
     if (!_adminCreated)
-      println("There must be an Admin, and there is none.\nNew user will be Admin\n")
+      println("\nThere must be an Admin, and there is none.\nNew user will be Admin\n")
     print("create user\nenter username: ")
     val name = readLine()
     print("\ncreate password: ")
@@ -205,6 +206,8 @@ object MovieDatabase {
       //println("ugh: " + id)
       spark.sql(s"INSERT INTO TABLE user_list VALUES ('$name', 'Basic', '$password')")
     }
+    _isLogin = true
+    _user = name
   }
 
   def alterUserData(spark: SparkSession): Unit = {
