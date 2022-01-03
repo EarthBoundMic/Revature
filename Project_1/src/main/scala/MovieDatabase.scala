@@ -1,9 +1,14 @@
+import org.apache.commons.math3.geometry.spherical.oned.S1Point
+
 import scala.io.StdIn.readLine
 import org.apache.spark.sql.SparkSession
 
-import scala.util.control.Breaks.break
+//import scala.util.control.Breaks.break
 
 object MovieDatabase {
+  private var _adminCreated = false
+  private var _isAdmin = false
+
   def main(args:Array[String]): Unit = {
     System.setProperty("hadoop.home.dir", "C:\\hadoop")
     val spark = SparkSession
@@ -15,6 +20,8 @@ object MovieDatabase {
     println("created spark session")
     spark.sparkContext.setLogLevel("ERROR")
     loadData(spark)
+    mainMenu(spark)
+    println("\nGoodbye")
     spark.close()
   }
 
@@ -26,28 +33,100 @@ object MovieDatabase {
       println("first setup: creating database")
       spark.sql("CREATE DATABASE p1")
     }
+    spark.sql("USE p1")
+    //spark.sql("drop table if exists user_list")
     //spark.sql("show databases").show
     //spark.sql("USE DATABASE p1")
-    if (!spark.catalog.tableExists("p1.user_list")) {
+    if (!spark.catalog.tableExists("user_list")) {
       println("creating user list")
-      spark.sql("CREATE TABLE IF NOT EXISTS p1.user_list(id Int,username String,userlevel String,password String)")
+      spark.sql("CREATE TABLE IF NOT EXISTS user_list (username String, userlevel String, password String)")
     }
-    val adminCheck = spark.sql("select username from p1.user_list where userlevel = \"Admin\"")
+    //spark.sql("describe user_list").show
+    /*if (!spark.catalog.tableExists("movie_list_main")) {
+      println("creating primary movie list")
+      spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,director String,cast String,year Int,criticScore Decimal,criticRatings Int,audienceScore Decimal,audienceCount Int,network String,genre String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ','")
+      spark.sql("LOAD DATA LOCAL INPATH 'pj1datasample.txt' INTO TABLE movie_list_main")
+      spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,director String,cast String,year Int,criticScore Decimal,criticRatings Int,audienceScore Decimal,audienceCount Int,network String,genre String)")
+      spark.sql("INSERT INTO movie_list_copy (SELECT * FROM movie_list_main)")
+    }
+    spark.sql("select * from movie_list_main").show*/
+    val adminCheck = spark.sql("select username from user_list where userlevel = \"Admin\"")
     if (adminCheck.collect().isEmpty)
       println("no admin user located")
-    else
-      println(adminCheck.collect().take(1)(1))
+    else {
+      println("Admin name is: " + adminCheck.collect().take(1)(0))
+      _adminCreated = true
+    }
   }
-  def createUser(spark:SparkSession, isAdmin: Boolean): Unit = {
+  def mainMenu(spark: SparkSession): Unit = {
+    var selection: Int = 0
+    do {
+      print("Select option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
+      selection = readLine().toInt
+      if (selection == 1)
+        sampleQueries(spark)
+      else if (selection == 2)
+        userLogin(spark)
+      else
+        println("invalid input\n")
+    }
+    while (selection != 0)
+  }
+
+  def sampleQueries(spark:SparkSession): Unit = {
+    // sample example queries go here
+    // can use data that can't be shown but not allowed to see it
+    var selection: Int = 0
+    do {
+      print("Select option number:\n1. List first 20 movies\n0. Go back")
+      selection = readLine().toInt
+      if (selection == 1)
+        spark.sql("SELECT network, title, genre, year, criticScore FROM movie_list1 ORDER BY year LIMIT 20").show
+      else
+        println("invalid input\n")
+    }
+    while (selection != 0)
+  }
+
+  def basicQueries(spark:SparkSession): Unit = {
+    // basic example queries go here
+    // queries that involve showing data non-users not allowed to see go here
+    var selection: Int = 0
+    do {
+      print("Select option number:\n1. \n0. Go back")
+      selection = readLine().toInt
+      if (selection == 1)
+        spark.sql("").show
+      else
+        println("invalid input\n")
+    }
+    while (selection != 0)
+  }
+
+  def adminUserManip(spark:SparkSession): Unit = {
+    // change and remove users here including self
+  }
+
+  def userLogin(spark: SparkSession): Unit = {
+    // this is login menu, will consist of login, create user, and back
+    // however, if no admin, create user will go to creating admin account
+  }
+
+  def createUser(spark:SparkSession): Unit = {
+    if (!_adminCreated)
+      println("There must be an Admin, and there is none.\nNew user will be Admin")
     print("create user\nenter username: ")
     val name = readLine()
     print("\ncreate password: ")
     val password = readLine()
-    if (isAdmin)
-      spark.sql(s"INSERT INTO TABLE user_list (id,username,userlevel,password) VALUES(1, $name, Admin, $password)")
-    else {
-      val id = spark.sql("SELECT max(id) AS cur FROM p1.user_list").collect().take(1)(1)
-      spark.sql(s"INSERT INTO TABLE user_list (id,username,userlevel,password) VALUES(${id + 1}, $name, Basic, $password)")
+    if (!_adminCreated) {
+      spark.sql(s"INSERT INTO user_list (id,username,userlevel,password) VALUES ($name, ${"Admin"}, $password)")
+      _adminCreated = true
+      _isAdmin = true
+    } else {
+      //val id = spark.sql("SELECT max(id) AS cur FROM user_list").collect().take(1)(1)
+      //println("ugh: " + id)
+      spark.sql(s"INSERT INTO user_list (id,username,userlevel,password) VALUES ($name, Basic, $password)")
     }
   }
 }
