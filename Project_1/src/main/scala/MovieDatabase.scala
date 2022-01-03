@@ -21,6 +21,7 @@ object MovieDatabase {
     spark.sparkContext.setLogLevel("ERROR")
     loadData(spark)
     mainMenu(spark)
+    spark.sql("DROP TABLE IF EXISTS movie_list_copy")
     println("\nGoodbye")
     spark.close()
   }
@@ -42,18 +43,23 @@ object MovieDatabase {
       spark.sql("CREATE TABLE IF NOT EXISTS user_list (username String, userlevel String, password String)")
     }
     //spark.sql("describe user_list").show
-    /*if (!spark.catalog.tableExists("movie_list_main")) {
+    //spark.sql("drop table if exists movie_list_main")
+    if (!spark.catalog.tableExists("movie_list_main")) {
       println("creating primary movie list")
-      spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,director String,cast String,year Int,criticScore Decimal,criticRatings Int,audienceScore Decimal,audienceCount Int,network String,genre String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ','")
+      spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,genre String,director String,cast String,year Int,criticScore Double,criticRatings Int,audienceScore Double,audienceCount Int,network String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ','")
       spark.sql("LOAD DATA LOCAL INPATH 'pj1datasample.txt' INTO TABLE movie_list_main")
     }
-      spark.sql("CREATE TABLE IF NOT EXISTS movie_list_main (title String,director String,cast String,year Int,criticScore Decimal,criticRatings Int,audienceScore Decimal,audienceCount Int,network String,genre String)")
+    //spark.sql("drop table if exists movie_list_copy")
+    if (!spark.catalog.tableExists("movie_list_copy")) {
+      spark.sql("CREATE TABLE IF NOT EXISTS movie_list_copy (title String,genre String,director String,cast String,year Int,criticScore Double,criticRatings Int,audienceScore Double,audienceCount Int,network String)")
       spark.sql("INSERT INTO movie_list_copy (SELECT * FROM movie_list_main)")
-    spark.sql("select * from movie_list_main").show*/
-    val adminCheck = spark.sql("select username from user_list where userlevel = \"Admin\"")
-    if (adminCheck.collect().isEmpty)
+    }
+    //spark.sql("select * from movie_list_main").show
+    //spark.sql("select * from movie_list_copy").show
+    val adminCheck = spark.sql("select username from user_list where userlevel = 'Admin'")
+    if (adminCheck.collect().isEmpty) {
       println("no admin user located")
-    else {
+    } else {
       println("Admin name is: " + adminCheck.collect().take(1)(0).getString(0))
       _adminCreated = true
     }
@@ -80,7 +86,7 @@ object MovieDatabase {
       }
       else if (_isAdmin && selection == 3)
           adminUserManip(spark)
-      else
+      else if (selection != 0)
         println("invalid input\n")
     }
     while (selection != 0)
@@ -119,12 +125,14 @@ object MovieDatabase {
     // change and remove users here including self
     var selection: Int = 0
     do {
-      print("User Data Access\n\nSelect option number:\n1. Change Data\n2. Delete Data\n0. Go back\n> ")
+      print("User Data Access\n\nSelect option number:\n1. Change Data\n2. Delete Data\n3. List Users\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
         alterUserData(spark)
       else if (selection == 2)
         deleteUserData(spark)
+      else if (selection == 3)
+        spark.sql("SELECT username, userlevel FROM user_list ORDER BY userlevel LIMIT 20").show
       else
         println("invalid input\n")
     }
@@ -138,11 +146,13 @@ object MovieDatabase {
     do {
       print("User Select\nSelect option number:\n1. Create User\n2. Login\n0. Go back\n> ")
       selection = readLine().toInt
-      if (selection == 1)
+      if (selection == 1) {
         createUser(spark)
-      else if (selection == 2)
+        selection = 0
+      } else if (selection == 2) {
         userLogin(spark)
-      else
+        selection = 0
+      } else
         println("invalid input\n")
     }
     while (selection != 0)
@@ -152,17 +162,17 @@ object MovieDatabase {
     println("User Login\nIf you change your mind, leave username blank")
     var selection = 0
     do {
-      print("\nEnter username:\n> ")
+      print("\nEnter username: ")
       val input = readLine()
-      val query = spark.sql(s"SELECT userlevel, password FROM user_list WHERE username = $input").collect()
+      val query = spark.sql(s"SELECT userlevel, password FROM user_list WHERE username = '$input'").collect()
       if (query.isEmpty) {
         println("\nname doesn't exist\n")
         selection = 1
       }
       else {
-        print("\nEnter password:\n> ")
+        print("\nEnter password: ")
         val password = readLine()
-        if (query.take(1)(1).getString(1) != password) {
+        if (query.take(1)(0).getString(1) != password) {
           println("\ninvalid password\n")
           selection = 1
         }
@@ -171,7 +181,7 @@ object MovieDatabase {
           _isLogin = true
           selection = 0
         }
-        if (query.take(1)(1).getString(0) == "Admin") {
+        if (query.take(1)(0).getString(0) == "Admin") {
           _isAdmin = true
         }
       }
@@ -187,13 +197,13 @@ object MovieDatabase {
     print("\ncreate password: ")
     val password = readLine()
     if (!_adminCreated) {
-      spark.sql(s"INSERT INTO user_list (username,userlevel,password) VALUES ($name, ${"Admin"}, $password)")
+      spark.sql(s"INSERT INTO TABLE user_list VALUES ('$name','Admin','$password')")
       _adminCreated = true
       _isAdmin = true
     } else {
       //val id = spark.sql("SELECT max(id) AS cur FROM user_list").collect().take(1)(1)
       //println("ugh: " + id)
-      spark.sql(s"INSERT INTO user_list (username,userlevel,password) VALUES ($name, Basic, $password)")
+      spark.sql(s"INSERT INTO TABLE user_list VALUES ('$name', 'Basic', '$password')")
     }
   }
 
@@ -225,6 +235,8 @@ object MovieDatabase {
     // admin user menu
   }*/
 }
+
+//note to self: strings inserted into queries must have quotes around them...
 
 /*
     quick notes on what is expected...
