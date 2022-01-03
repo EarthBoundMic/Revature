@@ -1,5 +1,3 @@
-import org.apache.commons.math3.geometry.spherical.oned.S1Point
-
 import scala.io.StdIn.readLine
 import org.apache.spark.sql.SparkSession
 
@@ -8,6 +6,8 @@ import org.apache.spark.sql.SparkSession
 object MovieDatabase {
   private var _adminCreated = false
   private var _isAdmin = false
+  private var _isLogin = false
+  private var _user = ""
 
   def main(args:Array[String]): Unit = {
     System.setProperty("hadoop.home.dir", "C:\\hadoop")
@@ -54,20 +54,30 @@ object MovieDatabase {
     if (adminCheck.collect().isEmpty)
       println("no admin user located")
     else {
-      println("Admin name is: " + adminCheck.collect().take(1)(0))
+      println("Admin name is: " + adminCheck.collect().take(1)(0).getString(0))
       _adminCreated = true
     }
   }
+
   def mainMenu(spark: SparkSession): Unit = {
     var selection: Int = 0
     do {
-      print("Select option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
+      if (_isLogin) {
+        if (_isAdmin)
+          print("Select option number:\n1. Sample Data\n2. Basic Data\n3. User Data\n0. Exit\n> ")
+        else
+          print("Select option number:\n1. Sample Data\n2. Basic Data\n0. Exit\n> ")
+      } else
+        print("Select option number:\n1. Sample Data\n2. User Login\n0. Exit\n> ")
       selection = readLine().toInt
       if (selection == 1)
         sampleQueries(spark)
-      else if (selection == 2)
-        userLogin(spark)
-      else
+      else if (selection == 2) {
+        if (!_isLogin)
+          userLoginMenu(spark)
+        else
+          basicQueries(spark)
+      } else
         println("invalid input\n")
     }
     while (selection != 0)
@@ -78,10 +88,10 @@ object MovieDatabase {
     // can use data that can't be shown but not allowed to see it
     var selection: Int = 0
     do {
-      print("Select option number:\n1. List first 20 movies\n0. Go back")
+      print("Sample Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
-        spark.sql("SELECT network, title, genre, year, criticScore FROM movie_list1 ORDER BY year LIMIT 20").show
+        spark.sql("SELECT network, title, genre, year, criticScore FROM movie_list_copy ORDER BY year LIMIT 20").show
       else
         println("invalid input\n")
     }
@@ -90,13 +100,12 @@ object MovieDatabase {
 
   def basicQueries(spark:SparkSession): Unit = {
     // basic example queries go here
-    // queries that involve showing data non-users not allowed to see go here
     var selection: Int = 0
     do {
-      print("Select option number:\n1. \n0. Go back")
+      print("Basic Queries\n\nSelect option number:\n1. List first 20 movies\n0. Go back\n> ")
       selection = readLine().toInt
       if (selection == 1)
-        spark.sql("").show
+        spark.sql("SELECT * FROM movie_list_copy ORDER BY year LIMIT 20").show
       else
         println("invalid input\n")
     }
@@ -107,27 +116,78 @@ object MovieDatabase {
     // change and remove users here including self
   }
 
-  def userLogin(spark: SparkSession): Unit = {
+  def userLoginMenu(spark: SparkSession): Unit = {
     // this is login menu, will consist of login, create user, and back
     // however, if no admin, create user will go to creating admin account
+    var selection: Int = 0
+    do {
+      print("User Select\nSelect option number:\n1. Create User\n2. Login\n0. Go back\n> ")
+      selection = readLine().toInt
+      if (selection == 1)
+        createUser(spark)
+      else if (selection == 2)
+        userLogin(spark)
+      else
+        println("invalid input\n")
+    }
+    while (selection != 0)
+  }
+
+  def userLogin(spark:SparkSession): Unit = {
+    println("User Login\nIf you change your mind, leave username blank")
+    var selection = 0
+    do {
+      print("\nEnter username:\n> ")
+      val input = readLine()
+      val query = spark.sql(s"SELECT userlevel, password FROM user_list WHERE username = $input").collect()
+      if (query.isEmpty) {
+        println("\nname doesn't exist\n")
+        selection = 1
+      }
+      else {
+        print("\nEnter password:\n> ")
+        val password = readLine()
+        if (query.take(1)(1).getString(1) != password) {
+          println("\ninvalid password\n")
+          selection = 1
+        }
+        else {
+          _user = input
+          _isLogin = true
+          selection = 0
+        }
+        if (query.take(1)(1).getString(0) == "Admin") {
+          _isAdmin = true
+        }
+      }
+    }
+    while (selection != 0)
   }
 
   def createUser(spark:SparkSession): Unit = {
     if (!_adminCreated)
-      println("There must be an Admin, and there is none.\nNew user will be Admin")
+      println("There must be an Admin, and there is none.\nNew user will be Admin\n")
     print("create user\nenter username: ")
     val name = readLine()
     print("\ncreate password: ")
     val password = readLine()
     if (!_adminCreated) {
-      spark.sql(s"INSERT INTO user_list (id,username,userlevel,password) VALUES ($name, ${"Admin"}, $password)")
+      spark.sql(s"INSERT INTO user_list (username,userlevel,password) VALUES ($name, ${"Admin"}, $password)")
       _adminCreated = true
       _isAdmin = true
     } else {
       //val id = spark.sql("SELECT max(id) AS cur FROM user_list").collect().take(1)(1)
       //println("ugh: " + id)
-      spark.sql(s"INSERT INTO user_list (id,username,userlevel,password) VALUES ($name, Basic, $password)")
+      spark.sql(s"INSERT INTO user_list (username,userlevel,password) VALUES ($name, Basic, $password)")
     }
+  }
+
+  def userMenu(spark:SparkSession): Unit = {
+    // basic user menu
+  }
+
+  def adminMenu(spark:SparkSession): Unit = {
+    // admin user menu
   }
 }
 
